@@ -1,10 +1,11 @@
 // Copyright (c) 2012-2016 The Bitcoin Core developers
 // Copyright (c) 2017-2020 The Raven Core developers
+// Copyright (c) 2026 The PoWH Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef RAVEN_VERSION_H
-#define RAVEN_VERSION_H
+#ifndef POWH_VERSION_H
+#define POWH_VERSION_H
 
 /**
  * network protocol versioning
@@ -61,4 +62,4 @@ static const int ASSETDATA_VERSION_UPDATED = 70020;
 static const int MESSAGING_RESTRICTED_ASSETS_VERSION = 70026;
 
 
-#endif // RAVEN_VERSION_H
+#endif // POWH_VERSION_H
