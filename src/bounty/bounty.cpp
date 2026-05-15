@@ -38,9 +38,15 @@ bool ParseBountyMetadata(const CScript& script, BountyEntry& entry)
         parts.push_back(item);
     }
 
+    if (parts[0] != "HLB1") return false;
+    if (parts[1] != "SHA256") return false;
+    if (parts[2].size() != 64 || !IsHex(parts[2])) return false;
+    if (parts[3].size() > 10) return false;
     if (parts.size() != 4) return false;
     entry.algorithm = parts[1];
     entry.targetHash = parts[2];
     entry.deadlineHeight = atoi(parts[3].c_str());
     return true;
 }
+
+std::map<std::string, CommitEntry> g_commit_index;

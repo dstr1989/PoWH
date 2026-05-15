@@ -35,6 +35,7 @@ static UniValue createbounty(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(pwallet);
 
     std::string targetHash = request.params[0].get_str();
+    if (AmountFromValue(UniValue(request.params[1].getValStr())) < COIN) throw JSONRPCError(RPC_INVALID_PARAMETER, "Bounty amount must be at least 1 HLC");
     if (targetHash.size() != 64 || !IsHex(targetHash))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid SHA256 target hash");
 
@@ -79,6 +80,7 @@ static UniValue createbounty(const JSONRPCRequest& request)
     CScript scriptPubKey = GetScriptForDestination(scriptID);
 
     std::string metadata = BuildBountyMetadata(targetHash, deadlineHeight);
+    if (metadata.size() > 128) throw JSONRPCError(RPC_INVALID_PARAMETER, "Metadata too large");
     CScript opReturnScript = CScript()
         << OP_RETURN
         << std::vector<unsigned char>(metadata.begin(), metadata.end());
@@ -131,6 +133,7 @@ static UniValue solvebounty(const JSONRPCRequest& request)
 
     uint256 txid = ParseHashV(request.params[0], "bounty_txid");
     std::string solution = request.params[1].get_str();
+    if (solution.size() > 1024) throw JSONRPCError(RPC_INVALID_PARAMETER, "Solution too large (max 1KB)");
     std::string payoutAddress = request.params[2].get_str();
 
     auto it = g_bounty_index.find(txid);
@@ -201,16 +204,108 @@ static UniValue listbounties(const JSONRPCRequest& request)
     return result;
 }
 
-static const CRPCCommand commands[] =
-{
+static UniValue commitbounty(const JSONRPCRequest& request);
+static UniValue revealbounty(const JSONRPCRequest& request);
+static const CRPCCommand commands[] = {
     { "bounty", "createbounty", &createbounty, {} },
     { "bounty", "solvebounty", &solvebounty, {} },
     { "bounty", "reclaimbounty", &reclaimbounty, {} },
     { "bounty", "listbounties", &listbounties, {} },
+    { "bounty", "commitbounty", &commitbounty, {} },
+    { "bounty", "revealbounty", &revealbounty, {} },
 };
 
 void RegisterBountyRPCCommands(CRPCTable& t)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         t.appendCommand(commands[vcidx].name, &commands[vcidx]);
+}
+
+static UniValue commitbounty(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 3)
+        throw std::runtime_error(
+            "commitbounty bounty_txid solution miner_address\n"
+            "Commit a solution without revealing it.");
+
+    uint256 txid = ParseHashV(request.params[0], "bounty_txid");
+    std::string solution = request.params[1].get_str();
+    std::string minerAddress = request.params[2].get_str();
+
+    auto it = g_bounty_index.find(txid);
+    if (it == g_bounty_index.end())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown bounty");
+
+    BountyEntry& entry = it->second;
+    if (entry.solved)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Bounty already solved");
+
+    unsigned char hash[CSHA256::OUTPUT_SIZE];
+    CSHA256().Write((const unsigned char*)solution.data(), solution.size()).Finalize(hash);
+    std::string computedHash = HexStr(hash, hash + CSHA256::OUTPUT_SIZE);
+
+    if (computedHash != entry.targetHash)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid solution");
+
+    std::string nonce = std::to_string(GetRand(1000000000));
+    std::string commitData = solution + minerAddress + nonce;
+    unsigned char commitHash[CSHA256::OUTPUT_SIZE];
+    CSHA256().Write((const unsigned char*)commitData.data(), commitData.size()).Finalize(commitHash);
+    std::string commitHex = HexStr(commitHash, commitHash + CSHA256::OUTPUT_SIZE);
+
+    CommitEntry centry;
+    centry.bountyTxid = txid;
+    centry.commitHash = commitHex;
+    centry.minerAddress = minerAddress;
+    centry.commitHeight = chainActive.Height();
+    g_commit_index[commitHex] = centry;
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("commit_hash", commitHex);
+    result.pushKV("miner_address", minerAddress);
+    result.pushKV("commit_height", centry.commitHeight);
+    result.pushKV("nonce", nonce);
+    result.pushKV("wait_blocks", 6);
+    return result;
+}
+
+static UniValue revealbounty(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 4)
+        throw std::runtime_error(
+            "revealbounty bounty_txid solution nonce payout_address\n"
+            "Reveal previously committed solution.");
+
+    uint256 txid = ParseHashV(request.params[0], "bounty_txid");
+    std::string solution = request.params[1].get_str();
+    std::string nonce = request.params[2].get_str();
+    std::string payoutAddress = request.params[3].get_str();
+
+    auto it = g_bounty_index.find(txid);
+    if (it == g_bounty_index.end())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown bounty");
+
+    BountyEntry& entry = it->second;
+    if (entry.solved)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Bounty already solved");
+
+    std::string commitData = solution + payoutAddress + nonce;
+    unsigned char commitHash[CSHA256::OUTPUT_SIZE];
+    CSHA256().Write((const unsigned char*)commitData.data(), commitData.size()).Finalize(commitHash);
+    std::string computedCommit = HexStr(commitHash, commitHash + CSHA256::OUTPUT_SIZE);
+
+    auto cit = g_commit_index.find(computedCommit);
+    if (cit == g_commit_index.end())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "No matching commit found - solution must be committed first");
+
+    if (chainActive.Height() < cit->second.commitHeight + 6)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Reveal too early - wait 6 blocks after commit");
+
+    entry.solved = true;
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("status", "solved");
+    result.pushKV("bounty_txid", txid.GetHex());
+    result.pushKV("payout_address", payoutAddress);
+    return result;
 }
