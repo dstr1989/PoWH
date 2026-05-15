@@ -246,6 +246,8 @@ libpowh_util_a-clientversion.$(OBJEXT): obj/build.h
 libpowh_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libpowh_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libpowh_server_a_SOURCES = \
+	bounty/bounty.cpp \
+	rpc/bounty.cpp \
   addrdb.cpp \
   addrman.cpp \
   bloom.cpp \

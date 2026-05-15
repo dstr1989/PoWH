@@ -1164,6 +1164,8 @@ bool AppInitParameterInteraction()
         fPruneMode = true;
     }
 
+    extern void RegisterBountyRPCCommands(CRPCTable &tableRPC);
+    RegisterBountyRPCCommands(tableRPC);
     RegisterAllCoreRPCCommands(tableRPC);
 #ifdef ENABLE_WALLET
     RegisterWalletRPC(tableRPC);
