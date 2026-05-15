@@ -123,3 +123,7 @@ contrib/devtools/split-debug.sh
 cmake-build-debug
 
 CMakeLists.txt
+src/hashlatchd
+src/hashlatch-cli
+src/hashlatchd
+src/hashlatch-cli

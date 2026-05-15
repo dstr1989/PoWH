@@ -66,11 +66,11 @@ TESTS =
 BENCHMARKS =
 
 if BUILD_POWHD
-  bin_PROGRAMS += ravend
+  bin_PROGRAMS += hashlatchd
 endif
 
 if BUILD_POWH_CLI
-  bin_PROGRAMS += raven-cli
+  bin_PROGRAMS += hashlatch-cli
 endif
 
 if BUILD_POWH_TX
@@ -242,7 +242,7 @@ obj/build.h: FORCE
 	  "$(abs_top_srcdir)"
 libpowh_util_a-clientversion.$(OBJEXT): obj/build.h
 
-# server: shared between ravend and raven-qt
+# server: shared between hashlatchd and raven-qt
 libpowh_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libpowh_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libpowh_server_a_SOURCES = \
@@ -311,7 +311,7 @@ libpowh_zmq_a_SOURCES = \
 endif
 
 
-# wallet: shared between ravend and raven-qt, but only linked
+# wallet: shared between hashlatchd and raven-qt, but only linked
 # when wallet enabled
 libpowh_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
 libpowh_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -417,7 +417,7 @@ libpowh_consensus_a_SOURCES = \
   LibBoolEE.h \
   $(RAVEN_CORE_H)
 
-# common: shared between ravend, and raven-qt and non-server tools
+# common: shared between hashlatchd, and raven-qt and non-server tools
 libpowh_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
 libpowh_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libpowh_common_a_SOURCES = \
@@ -467,7 +467,7 @@ libpowh_util_a_SOURCES += compat/glibc_compat.cpp
 AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
-# cli: shared between raven-cli and raven-qt
+# cli: shared between hashlatch-cli and raven-qt
 libpowh_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
 libpowh_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libpowh_cli_a_SOURCES = \
@@ -477,17 +477,17 @@ libpowh_cli_a_SOURCES = \
 nodist_libpowh_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
-# ravend binary #
-ravend_SOURCES = ravend.cpp
-ravend_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
-ravend_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-ravend_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# hashlatchd binary #
+hashlatchd_SOURCES = hashlatchd.cpp
+hashlatchd_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
+hashlatchd_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+hashlatchd_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-ravend_SOURCES += ravend-res.rc
+hashlatchd_SOURCES += hashlatchd-res.rc
 endif
 
-ravend_LDADD = \
+hashlatchd_LDADD = \
   $(LIBRAVEN_SERVER) \
   $(LIBRAVEN_COMMON) \
   $(LIBUNIVALUE) \
@@ -501,38 +501,38 @@ ravend_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-ravend_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+hashlatchd_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
-# raven-cli binary #
-raven_cli_SOURCES = raven-cli.cpp
-raven_cli_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES) $(EVENT_CFLAGS)
-raven_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-raven_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# hashlatch-cli binary #
+hashlatch_cli_SOURCES = hashlatch-cli.cpp
+hashlatch_cli_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES) $(EVENT_CFLAGS)
+hashlatch_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+hashlatch_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-raven_cli_SOURCES += raven-cli-res.rc
+hashlatch_cli_SOURCES += hashlatch-cli-res.rc
 endif
 
-raven_cli_LDADD = \
+hashlatch_cli_LDADD = \
   $(LIBRAVEN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBRAVEN_UTIL) \
   $(LIBRAVEN_CRYPTO)
 
-raven_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
+hashlatch_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # raven-tx binary #
-raven_tx_SOURCES = raven-tx.cpp
-raven_tx_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
-raven_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-raven_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+hashlatch_tx_SOURCES = raven-tx.cpp
+hashlatch_tx_CPPFLAGS = $(AM_CPPFLAGS) $(RAVEN_INCLUDES)
+hashlatch_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+hashlatch_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-raven_tx_SOURCES += raven-tx-res.rc
+hashlatch_tx_SOURCES += raven-tx-res.rc
 endif
 
-raven_tx_LDADD = \
+hashlatch_tx_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBRAVEN_COMMON) \
   $(LIBRAVEN_UTIL) \
@@ -540,7 +540,7 @@ raven_tx_LDADD = \
   $(LIBRAVEN_CRYPTO) \
   $(LIBSECP256K1)
 
-raven_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+hashlatch_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
 # ravenconsensus library #
