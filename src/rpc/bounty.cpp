@@ -12,6 +12,7 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <streams.h>
+#include <base58.h>
 #include <tinyformat.h>
 #include <util.h>
 #include <utilstrencodings.h>
@@ -129,7 +130,14 @@ static UniValue solvebounty(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 3)
         throw std::runtime_error(
             "solvebounty bounty_txid solution payout_address\n"
-            "Solve an HLC bounty.");
+            "Solve an HLC bounty. Reward is sent to payout_address.");
+
+#ifdef ENABLE_WALLET
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet not found");
+
+    EnsureWalletIsUnlocked(pwallet);
 
     uint256 txid = ParseHashV(request.params[0], "bounty_txid");
     std::string solution = request.params[1].get_str();
@@ -153,11 +161,38 @@ static UniValue solvebounty(const JSONRPCRequest& request)
 
     entry.solved = true;
 
+    CTxDestination dest = DecodeDestination(payoutAddress);
+    if (!IsValidDestination(dest))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid payout address");
+
+    CAmount reward = entry.amount;
+    CAmount nFeeRet = 0;
+    int nChangePosInOut = -1;
+    std::string error;
+    CReserveKey reserveKey(pwallet);
+    CWalletTx wtxPayout;
+    CCoinControl coinControl;
+
+    std::vector<CRecipient> recipients;
+    recipients.push_back({GetScriptForDestination(dest), reward, false});
+
+    if (!pwallet->CreateTransaction(recipients, wtxPayout, reserveKey, nFeeRet, nChangePosInOut, error, coinControl))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Payout transaction creation failed: " + error);
+
+    CValidationState state;
+    if (!pwallet->CommitTransaction(wtxPayout, reserveKey, g_connman.get(), state))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Payout commit failed");
+
     UniValue result(UniValue::VOBJ);
     result.pushKV("status", "solved");
     result.pushKV("bounty_txid", txid.GetHex());
     result.pushKV("payout_address", payoutAddress);
+    result.pushKV("payout_txid", wtxPayout.GetHash().GetHex());
+    result.pushKV("reward", ValueFromAmount(reward));
     return result;
+#else
+    throw JSONRPCError(RPC_WALLET_ERROR, "Wallet disabled");
+#endif
 }
 
 static UniValue reclaimbounty(const JSONRPCRequest& request)
